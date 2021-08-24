@@ -7,7 +7,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-// ChannelHost is an internal representation of amqp.Connection.
+// ChannelHost is an internal representation of amqp.Channel.
 type ChannelHost struct {
 	Channel       *amqp.Channel
 	ID            uint64
