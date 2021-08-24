@@ -12,28 +12,28 @@ import (
 
 // ConnectionPool houses the pool of RabbitMQ connections.
 type ConnectionPool struct {
-	Config               PoolConfig
-	uri                  string
-	heartbeatInterval    time.Duration
-	connectionTimeout    time.Duration
-	connections          *queue.Queue
-	channels             chan *ChannelHost
-	connectionID         uint64
-	poolRWLock           *sync.RWMutex
-	flaggedConnections   map[uint64]bool
-	sleepOnErrorInterval time.Duration
-	errorHandler         func(error)
+	Config               PoolConfig        //连接池配置
+	uri                  string            //连接URL
+	heartbeatInterval    time.Duration     //心跳时间间隔
+	connectionTimeout    time.Duration     //连接超时
+	connections          *queue.Queue      //用于保存已创建连接队列
+	channels             chan *ChannelHost //保存已创建channel集合
+	connectionID         uint64            //连接标记
+	poolRWLock           *sync.RWMutex     //连接池读写锁
+	flaggedConnections   map[uint64]bool   //标记已衰退(不可用)连接集合
+	sleepOnErrorInterval time.Duration     //连接创建错误时延时时间
+	errorHandler         func(error)       //异常处理回调
 }
 
 // NewConnectionPool creates hosting structure for the ConnectionPool.
 func NewConnectionPool(config *PoolConfig) (*ConnectionPool, error) {
 
 	if config.Heartbeat == 0 || config.ConnectionTimeout == 0 {
-		return nil, errors.New("connectionpool heartbeat or connectiontimeout can't be 0")
+		return nil, errors.New("connection pool heartbeat or connection timeout can't be 0")
 	}
 
 	if config.MaxConnectionCount == 0 {
-		return nil, errors.New("connectionpool maxconnectioncount can't be 0")
+		return nil, errors.New("connection pool max connection count can't be 0")
 	}
 
 	cp := &ConnectionPool{
@@ -188,12 +188,12 @@ func (cp *ConnectionPool) triggerConnectionRecovery(connHost *ConnectionHost) {
 		break
 	}
 
-	// Flush any pending errors.
+	// Flush any pending errors. 清除当前连接之前全部异常，并重新将其标记为可用状态
 	for {
 		select {
 		case <-connHost.Errors:
 		default:
-			cp.unflagConnection(connHost.ConnectionID)
+			cp.unflagConnection(connHost.ConnectionID) //重新标记为可用
 			return
 		}
 	}
@@ -207,7 +207,7 @@ func (cp *ConnectionPool) ReturnConnection(connHost *ConnectionHost, flag bool) 
 		cp.flagConnection(connHost.ConnectionID)
 	}
 
-	cp.connections.Put(connHost)
+	_ = cp.connections.Put(connHost)
 }
 
 // GetChannelFromPool gets a cached ackable channel from the Pool if they exist or creates a channel.
@@ -272,11 +272,11 @@ func (cp *ConnectionPool) createCacheChannel(id uint64) *ChannelHost {
 		chanHost, err := NewChannelHost(connHost, id, connHost.ConnectionID, true, true)
 		if err != nil {
 			cp.handleError(err)
-			cp.ReturnConnection(connHost, true)
+			cp.ReturnConnection(connHost, true) //标记不可用，将会添加至flagConnection集合中
 			continue
 		}
 
-		cp.ReturnConnection(connHost, false)
+		cp.ReturnConnection(connHost, false) //标记可用
 		return chanHost
 	}
 }
@@ -326,7 +326,7 @@ func (cp *ConnectionPool) flagConnection(connectionID uint64) {
 	cp.flaggedConnections[connectionID] = true
 }
 
-// IsConnectionFlagged checks to see if the connection has been flagged for removal.
+// IsConnectionFlagged 检查连接是否已被标记为删除  checks to see if the connection has been flagged for removal.
 func (cp *ConnectionPool) isConnectionFlagged(connectionID uint64) bool {
 	cp.poolRWLock.RLock()
 	defer cp.poolRWLock.RUnlock()

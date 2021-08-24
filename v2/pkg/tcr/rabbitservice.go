@@ -162,7 +162,7 @@ func (rs *RabbitService) PublishWithConfirmation(
 				Headers:      headers,
 			},
 		},
-		time.Duration(time.Millisecond*300))
+		time.Millisecond*300)
 
 	return nil
 }

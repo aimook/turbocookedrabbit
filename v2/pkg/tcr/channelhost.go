@@ -50,7 +50,7 @@ func NewChannelHost(
 
 // Close allows for manual close of Amqp Channel kept internally.
 func (ch *ChannelHost) Close() {
-	ch.Channel.Close()
+	_ = ch.Channel.Close()
 }
 
 // MakeChannel tries to create (or re-create) the channel from the ConnectionHost its attached to.

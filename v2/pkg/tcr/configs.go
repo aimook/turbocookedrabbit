@@ -52,7 +52,7 @@ type PublisherConfig struct {
 	MaxRetryCount          uint32 `json:"MaxRetryCount"`
 }
 
-// TopologyConfig allows you to build simple toplogies from a JSON file.
+// TopologyConfig allows you to build simple topologies from a JSON file.
 type TopologyConfig struct {
 	Exchanges        []*Exchange        `json:"Exchanges"`
 	Queues           []*Queue           `json:"Queues"`
@@ -60,7 +60,7 @@ type TopologyConfig struct {
 	ExchangeBindings []*ExchangeBinding `json:"ExchangeBindings"`
 }
 
-// CompressionConfig allows you to configuration symmetric key encryption based on options
+// CompressionConfig allows you to configuration compression based on options
 type CompressionConfig struct {
 	Enabled bool   `json:"Enabled"`
 	Type    string `json:"Type,omitempty"`

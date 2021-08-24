@@ -113,7 +113,7 @@ func (pub *Publisher) PublishWithTransient(letter *Letter) error {
 		defer func() {
 			_ = recover()
 		}()
-		channel.Close()
+		_ = channel.Close()
 	}()
 
 	return channel.Publish(
@@ -192,8 +192,7 @@ func (pub *Publisher) PublishWithConfirmation(letter *Letter, timeout time.Durat
 				return
 
 			default:
-
-				time.Sleep(time.Duration(time.Millisecond * 1)) // limits CPU spin up
+				time.Sleep(time.Millisecond * 1) // limits CPU spin up
 			}
 		}
 	}
@@ -253,7 +252,7 @@ func (pub *Publisher) PublishWithConfirmationContext(ctx context.Context, letter
 
 			default:
 
-				time.Sleep(time.Duration(time.Millisecond * 1)) // limits CPU spin up
+				time.Sleep(time.Millisecond * 1) // limits CPU spin up
 			}
 		}
 	}
@@ -295,7 +294,7 @@ func (pub *Publisher) PublishWithConfirmationTransient(letter *Letter, timeout t
 			},
 		)
 		if err != nil {
-			channel.Close()
+			_ = channel.Close()
 			if pub.sleepOnErrorInterval < 0 {
 				time.Sleep(pub.sleepOnErrorInterval)
 			}
@@ -307,7 +306,7 @@ func (pub *Publisher) PublishWithConfirmationTransient(letter *Letter, timeout t
 			select {
 			case <-timeoutAfter:
 				pub.publishReceipt(letter, fmt.Errorf("publish confirmation for LetterID: %s wasn't received in a timely manner (%dms) - recommend retry/requeue", letter.LetterID.String(), timeout))
-				channel.Close()
+				_ = channel.Close()
 				return
 
 			case confirmation := <-confirms:
@@ -318,12 +317,11 @@ func (pub *Publisher) PublishWithConfirmationTransient(letter *Letter, timeout t
 
 				// Happy Path, publish was received by server and we didn't timeout client side.
 				pub.publishReceipt(letter, nil)
-				channel.Close()
+				_ = channel.Close()
 				return
 
 			default:
-
-				time.Sleep(time.Duration(time.Millisecond * 4)) // limits CPU spin up
+				time.Sleep(time.Millisecond * 4) // limits CPU spin up
 			}
 		}
 	}

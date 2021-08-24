@@ -104,7 +104,9 @@ func (con *Consumer) Get(queueName string) (*amqp.Delivery, error) {
 
 	// Get Channel
 	channel := con.ConnectionPool.GetTransientChannel(false)
-	defer channel.Close()
+	defer func(channel *amqp.Channel) {
+		_ = channel.Close()
+	}(channel)
 
 	// Get Single Message
 	amqpDelivery, ok, getErr := channel.Get(queueName, true)
@@ -128,7 +130,9 @@ func (con *Consumer) GetBatch(queueName string, batchSize int) ([]*amqp.Delivery
 
 	// Get Channel
 	channel := con.ConnectionPool.GetTransientChannel(false)
-	defer channel.Close()
+	defer func(channel *amqp.Channel) {
+		_ = channel.Close()
+	}(channel)
 
 	messages := make([]*amqp.Delivery, 0)
 

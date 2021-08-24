@@ -27,8 +27,8 @@ func NewTopologer(cp *ConnectionPool) *Topologer {
 	}
 }
 
-// BuildToplogy builds a topology based on a ToplogyConfig - stops on first error.
-func (top *Topologer) BuildToplogy(config *TopologyConfig, ignoreErrors bool) error {
+// BuildTopology builds a topology based on a TopologyConfig - stops on first error.
+func (top *Topologer) BuildTopology(config *TopologyConfig, ignoreErrors bool) error {
 
 	err := top.BuildExchanges(config.Exchanges, ignoreErrors)
 	if err != nil && !ignoreErrors {
@@ -129,20 +129,24 @@ func (top *Topologer) CreateExchange(
 	args map[string]interface{}) error {
 
 	channel := top.ConnectionPool.GetTransientChannel(false)
-	defer channel.Close()
+	defer func(channel *amqp.Channel) {
+		_ = channel.Close()
+	}(channel)
 
 	if passiveDeclare {
-		return channel.ExchangeDeclarePassive(exchangeName, exchangeType, durable, autoDelete, internal, noWait, amqp.Table(args))
+		return channel.ExchangeDeclarePassive(exchangeName, exchangeType, durable, autoDelete, internal, noWait, args)
 	}
 
-	return channel.ExchangeDeclare(exchangeName, exchangeType, durable, autoDelete, internal, noWait, amqp.Table(args))
+	return channel.ExchangeDeclare(exchangeName, exchangeType, durable, autoDelete, internal, noWait, args)
 }
 
 // CreateExchangeFromConfig builds an Exchange toplogy from a config Exchange element.
 func (top *Topologer) CreateExchangeFromConfig(exchange *Exchange) error {
 
 	channel := top.ConnectionPool.GetTransientChannel(false)
-	defer channel.Close()
+	defer func(channel *amqp.Channel) {
+		_ = channel.Close()
+	}(channel)
 
 	if exchange.PassiveDeclare {
 		return channel.ExchangeDeclarePassive(
@@ -169,7 +173,9 @@ func (top *Topologer) CreateExchangeFromConfig(exchange *Exchange) error {
 func (top *Topologer) ExchangeBind(exchangeBinding *ExchangeBinding) error {
 
 	channel := top.ConnectionPool.GetTransientChannel(false)
-	defer channel.Close()
+	defer func(channel *amqp.Channel) {
+		_ = channel.Close()
+	}(channel)
 
 	return channel.ExchangeBind(
 		exchangeBinding.ExchangeName,
@@ -185,23 +191,28 @@ func (top *Topologer) ExchangeDelete(
 	ifUnused, noWait bool) error {
 
 	channel := top.ConnectionPool.GetTransientChannel(false)
-	defer channel.Close()
+	defer func(channel *amqp.Channel) {
+		_ = channel.Close()
+	}(channel)
 
 	return channel.ExchangeDelete(exchangeName, ifUnused, noWait)
 }
 
 // ExchangeUnbind removes the binding of an Exchange to an Exchange.
-func (top *Topologer) ExchangeUnbind(exchangeName, routingKey, parentExchangeName string, noWait bool, args map[string]interface{}) error {
+func (top *Topologer) ExchangeUnbind(exchangeName, routingKey, parentExchangeName string, noWait bool,
+	args map[string]interface{}) error {
 
 	channel := top.ConnectionPool.GetTransientChannel(false)
-	defer channel.Close()
+	defer func(channel *amqp.Channel) {
+		_ = channel.Close()
+	}(channel)
 
 	return channel.ExchangeUnbind(
 		exchangeName,
 		routingKey,
 		parentExchangeName,
 		noWait,
-		amqp.Table(args))
+		args)
 }
 
 // CreateQueue builds a Queue topology.
@@ -215,14 +226,16 @@ func (top *Topologer) CreateQueue(
 	args map[string]interface{}) error {
 
 	channel := top.ConnectionPool.GetTransientChannel(false)
-	defer channel.Close()
+	defer func(channel *amqp.Channel) {
+		_ = channel.Close()
+	}(channel)
 
 	if passiveDeclare {
-		_, err := channel.QueueDeclarePassive(queueName, durable, autoDelete, exclusive, noWait, amqp.Table(args))
+		_, err := channel.QueueDeclarePassive(queueName, durable, autoDelete, exclusive, noWait, args)
 		return err
 	}
 
-	_, err := channel.QueueDeclare(queueName, durable, autoDelete, exclusive, noWait, amqp.Table(args))
+	_, err := channel.QueueDeclare(queueName, durable, autoDelete, exclusive, noWait, args)
 	return err
 }
 
@@ -230,7 +243,9 @@ func (top *Topologer) CreateQueue(
 func (top *Topologer) CreateQueueFromConfig(queue *Queue) error {
 
 	channel := top.ConnectionPool.GetTransientChannel(false)
-	defer channel.Close()
+	defer func(channel *amqp.Channel) {
+		_ = channel.Close()
+	}(channel)
 
 	// classic is automatic and supports all classic properties, quorum type does not so this helps keep things functional
 	if queue.Type == QueueTypeQuorum {
@@ -259,7 +274,9 @@ func (top *Topologer) CreateQueueFromConfig(queue *Queue) error {
 func (top *Topologer) QueueDelete(name string, ifUnused, ifEmpty, noWait bool) (int, error) {
 
 	channel := top.ConnectionPool.GetTransientChannel(false)
-	defer channel.Close()
+	defer func(channel *amqp.Channel) {
+		_ = channel.Close()
+	}(channel)
 
 	return channel.QueueDelete(name, ifUnused, ifEmpty, noWait)
 }
@@ -268,7 +285,9 @@ func (top *Topologer) QueueDelete(name string, ifUnused, ifEmpty, noWait bool) (
 func (top *Topologer) QueueBind(queueBinding *QueueBinding) error {
 
 	channel := top.ConnectionPool.GetTransientChannel(false)
-	defer channel.Close()
+	defer func(channel *amqp.Channel) {
+		_ = channel.Close()
+	}(channel)
 
 	return channel.QueueBind(
 		queueBinding.QueueName,
@@ -302,7 +321,9 @@ func (top *Topologer) PurgeQueues(queueNames []string, noWait bool) (int, error)
 func (top *Topologer) PurgeQueue(queueName string, noWait bool) (int, error) {
 
 	channel := top.ConnectionPool.GetTransientChannel(false)
-	defer channel.Close()
+	defer func(channel *amqp.Channel) {
+		_ = channel.Close()
+	}(channel)
 
 	return channel.QueuePurge(
 		queueName,
@@ -313,11 +334,13 @@ func (top *Topologer) PurgeQueue(queueName string, noWait bool) (int, error) {
 func (top *Topologer) UnbindQueue(queueName, routingKey, exchangeName string, args map[string]interface{}) error {
 
 	channel := top.ConnectionPool.GetTransientChannel(false)
-	defer channel.Close()
+	defer func(channel *amqp.Channel) {
+		_ = channel.Close()
+	}(channel)
 
 	return channel.QueueUnbind(
 		queueName,
 		routingKey,
 		exchangeName,
-		amqp.Table(args))
+		args)
 }
