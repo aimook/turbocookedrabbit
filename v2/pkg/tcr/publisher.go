@@ -176,7 +176,8 @@ func (pub *Publisher) PublishWithConfirmation(letter *Letter, timeout time.Durat
 		for {
 			select {
 			case <-timeoutAfter:
-				pub.publishReceipt(letter, fmt.Errorf("publish confirmation for LetterID: %s wasn't received in a timely manner - recommend retry/requeue", letter.LetterID.String()))
+				pub.publishReceipt(letter, fmt.Errorf("publish confirmation for LetterID: %s wasn't received "+
+					"in a timely manner - recommend retry/requeue", letter.LetterID.String()))
 				pub.ConnectionPool.ReturnChannel(chanHost, false) // not a channel error
 				return
 
@@ -235,7 +236,8 @@ func (pub *Publisher) PublishWithConfirmationContext(ctx context.Context, letter
 		for {
 			select {
 			case <-ctx.Done():
-				pub.publishReceipt(letter, fmt.Errorf("publish confirmation for LetterID: %s wasn't received before context expired - recommend retry/requeue", letter.LetterID.String()))
+				pub.publishReceipt(letter, fmt.Errorf("publish confirmation for LetterID: %s wasn't "+
+					"received before context expired - recommend retry/requeue", letter.LetterID.String()))
 				pub.ConnectionPool.ReturnChannel(chanHost, false) // not a channel error
 				return
 
@@ -305,7 +307,9 @@ func (pub *Publisher) PublishWithConfirmationTransient(letter *Letter, timeout t
 		for {
 			select {
 			case <-timeoutAfter:
-				pub.publishReceipt(letter, fmt.Errorf("publish confirmation for LetterID: %s wasn't received in a timely manner (%dms) - recommend retry/requeue", letter.LetterID.String(), timeout))
+				pub.publishReceipt(letter,
+					fmt.Errorf("publish confirmation for LetterID: %s wasn't received in a timely manner (%dms) "+
+						"- recommend retry/requeue", letter.LetterID.String(), timeout))
 				_ = channel.Close()
 				return
 
@@ -423,7 +427,8 @@ func (pub *Publisher) stopAutoPublish() {
 	go func() { pub.autoStop <- true }() // signal auto publish to stop
 }
 
-// QueueLetters allows you to bulk queue letters that will be consumed by AutoPublish. By default, AutoPublish uses PublishWithConfirmation as the mechanism for publishing.
+// QueueLetters allows you to bulk queue letters that will be consumed by AutoPublish.
+//By default, AutoPublish uses PublishWithConfirmation as the mechanism for publishing.
 func (pub *Publisher) QueueLetters(letters []*Letter) bool {
 
 	for _, letter := range letters {
@@ -436,7 +441,8 @@ func (pub *Publisher) QueueLetters(letters []*Letter) bool {
 	return true
 }
 
-// QueueLetter queues up a letter that will be consumed by AutoPublish. By default, AutoPublish uses PublishWithConfirmation as the mechanism for publishing.
+// QueueLetter queues up a letter that will be consumed by AutoPublish.
+//By default, AutoPublish uses PublishWithConfirmation as the mechanism for publishing.
 func (pub *Publisher) QueueLetter(letter *Letter) bool {
 
 	return pub.safeSend(letter)
