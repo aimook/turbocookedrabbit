@@ -29,7 +29,7 @@ Be sure to visit tests for examples on how to do a variety of actions with the l
 <p>
 
 ## TO GET (including V2)
-`go get -u "github.com/houseofcat/turbocookedrabbit/v2"`  
+`go get -u "~~github~~.com/houseofcat/turbocookedrabbit/v2"`  
 
 If I hotfix legacy
 `go get -u "github.com/houseofcat/turbocookedrabbit/v1"` 

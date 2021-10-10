@@ -63,7 +63,7 @@ func (ch *ChannelHost) MakeChannel() (err error) {
 		return err
 	}
 
-	if ch.Ackable {
+	if ch.Ackable { //开启消息确认模式，默认为true
 		err = ch.Channel.Confirm(false)
 		if err != nil {
 			return err
@@ -92,7 +92,7 @@ func (ch *ChannelHost) FlushConfirms() {
 		// Some weird use case where the Channel is being flooded with confirms after connection disrupt
 		select {
 		case <-ch.Confirmations:
-			return // did not used to be a return, leaving code as is for future revisit
+			return // did not used to be a return, leaving code as is for future revisit 跳出select，继续下一次for循环
 		default:
 			return
 		}

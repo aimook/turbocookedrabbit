@@ -12,14 +12,14 @@ import (
 // ConnectionHost is an internal representation of amqp.Connection.
 type ConnectionHost struct {
 	Connection         *amqp.Connection
-	ConnectionID       uint64
-	CachedChannelCount uint64
+	ConnectionID       uint64 //连接标识
+	CachedChannelCount uint64 //缓存连接通道数量
 	uri                string
-	connectionName     string
+	connectionName     string //自定义连接名称，由Config.ApplicationName + "-" + ConnectionID组成
 	heartbeatInterval  time.Duration
 	connectionTimeout  time.Duration
 	tlsConfig          *TLSConfig
-	Errors             chan *amqp.Error
+	Errors             chan *amqp.Error //标记连接错误，用于后续检测当前连接是否正常可用
 	Blockers           chan amqp.Blocking
 	connLock           *sync.Mutex
 }
@@ -74,7 +74,7 @@ func (ch *ConnectionHost) Connect() bool {
 	var actualTLSConfig *tls.Config
 	var err error
 
-	if ch.tlsConfig != nil && ch.tlsConfig.EnableTLS {
+	if ch.tlsConfig != nil && ch.tlsConfig.EnableTLS { //启用TLS
 
 		actualTLSConfig, err = CreateTLSConfig(
 			ch.tlsConfig.PEMCertLocation,
@@ -84,7 +84,7 @@ func (ch *ConnectionHost) Connect() bool {
 		}
 	}
 
-	if actualTLSConfig == nil {
+	if actualTLSConfig == nil { //再次检测TLS配置是否满足条件
 		amqpConn, err = amqp.DialConfig(ch.uri, amqp.Config{
 			Heartbeat: ch.heartbeatInterval,
 			Dial:      amqp.DefaultDial(ch.connectionTimeout),

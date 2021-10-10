@@ -39,9 +39,9 @@ func NewConnectionPool(config *PoolConfig) (*ConnectionPool, error) {
 	cp := &ConnectionPool{
 		Config:               *config,
 		uri:                  config.URI,
-		heartbeatInterval:    time.Duration(config.Heartbeat) * time.Second,
-		connectionTimeout:    time.Duration(config.ConnectionTimeout) * time.Second,
-		connections:          queue.New(int64(config.MaxConnectionCount)), // possible overflow error
+		heartbeatInterval:    time.Duration(config.Heartbeat) * time.Second,         //单位秒
+		connectionTimeout:    time.Duration(config.ConnectionTimeout) * time.Second, //单位秒
+		connections:          queue.New(int64(config.MaxConnectionCount)),           // possible overflow error
 		channels:             make(chan *ChannelHost, config.MaxCacheChannelCount),
 		poolRWLock:           &sync.RWMutex{},
 		flaggedConnections:   make(map[uint64]bool),
@@ -86,9 +86,10 @@ func NewConnectionPoolWithErrorHandler(config *PoolConfig, errorHandler func(err
 	return cp, nil
 }
 
+//initializeConnections 连接池初始化
 func (cp *ConnectionPool) initializeConnections() bool {
 
-	cp.connectionID = 0
+	cp.connectionID = 0 //连接池连接ID由0开始自增
 	cp.connections = queue.New(int64(cp.Config.MaxConnectionCount))
 
 	for i := uint64(0); i < cp.Config.MaxConnectionCount; i++ {
@@ -114,8 +115,8 @@ func (cp *ConnectionPool) initializeConnections() bool {
 		cp.connectionID++
 	}
 
-	for i := uint64(0); i < cp.Config.MaxCacheChannelCount; i++ {
-		cp.channels <- cp.createCacheChannel(i)
+	for i := uint64(0); i < cp.Config.MaxCacheChannelCount; i++ { //初始化时先创建连接数量为 最大缓存连接数 一致
+		cp.channels <- cp.createCacheChannel(i) //创建新的连接
 	}
 
 	return true
@@ -126,8 +127,8 @@ func (cp *ConnectionPool) initializeConnections() bool {
 // Uses the SleepOnErrorInterval to pause between retries.
 func (cp *ConnectionPool) GetConnection() (*ConnectionHost, error) {
 
-	connHost, err := cp.getConnectionFromPool()
-	if err != nil { // errors on bad data in the queue
+	connHost, err := cp.getConnectionFromPool() //从连接池中获取一个连接
+	if err != nil {                             // errors on bad data in the queue
 		cp.handleError(err)
 		return nil, err
 	}
@@ -137,11 +138,12 @@ func (cp *ConnectionPool) GetConnection() (*ConnectionHost, error) {
 	return connHost, nil
 }
 
+//getConnectionFromPool 从连接池(队列)中获取连接
 func (cp *ConnectionPool) getConnectionFromPool() (*ConnectionHost, error) {
 
 	// Pull from the queue.
 	// Pauses here indefinitely if the queue is empty.
-	structs, err := cp.connections.Get(1)
+	structs, err := cp.connections.Get(1) //TODO: 队列Get(1)原因？
 	if err != nil {
 		return nil, err
 	}
@@ -154,6 +156,7 @@ func (cp *ConnectionPool) getConnectionFromPool() (*ConnectionHost, error) {
 	return connHost, nil
 }
 
+//verifyHealthyConnection 验证当前连接状态是否健康
 func (cp *ConnectionPool) verifyHealthyConnection(connHost *ConnectionHost) {
 
 	healthy := true
@@ -164,7 +167,7 @@ func (cp *ConnectionPool) verifyHealthyConnection(connHost *ConnectionHost) {
 		break
 	}
 
-	flagged := cp.isConnectionFlagged(connHost.ConnectionID)
+	flagged := cp.isConnectionFlagged(connHost.ConnectionID) //通过连接ID检测当前连接是否标记为不可用
 
 	// Between these three states we do our best to determine that a connection is dead in the various lifecycles.
 	if flagged || !healthy || connHost.Connection.IsClosed( /* atomic */ ) {
@@ -174,9 +177,10 @@ func (cp *ConnectionPool) verifyHealthyConnection(connHost *ConnectionHost) {
 	connHost.PauseOnFlowControl()
 }
 
+//triggerConnectionRecovery 当连接被标记为不可用(衰退)、连接存在错误、可当前连接已关闭时，将触发连接重连
 func (cp *ConnectionPool) triggerConnectionRecovery(connHost *ConnectionHost) {
 
-	// InfiniteLoop: Stay here till we reconnect.
+	// InfiniteLoop: Stay here till we reconnect. 无限循环，直至连接创建成功
 	for {
 		ok := connHost.Connect()
 		if !ok {
@@ -203,11 +207,11 @@ func (cp *ConnectionPool) triggerConnectionRecovery(connHost *ConnectionHost) {
 // This helps maintain a Round Robin on Connections and their resources.
 func (cp *ConnectionPool) ReturnConnection(connHost *ConnectionHost, flag bool) {
 
-	if flag {
+	if flag { //将连接添加至不可用集合中  map[uint64]bool
 		cp.flagConnection(connHost.ConnectionID)
 	}
 
-	_ = cp.connections.Put(connHost)
+	_ = cp.connections.Put(connHost) //将当前连接添加至已创建队列，不管可用还是不可用
 }
 
 // GetChannelFromPool gets a cached ackable channel from the Pool if they exist or creates a channel.
@@ -273,7 +277,7 @@ func (cp *ConnectionPool) createCacheChannel(id uint64) *ChannelHost {
 		if err != nil {
 			cp.handleError(err)
 			cp.ReturnConnection(connHost, true) //标记不可用，将会添加至flagConnection集合中
-			continue
+			continue                            //继续创建连接
 		}
 
 		cp.ReturnConnection(connHost, false) //标记可用
@@ -326,7 +330,7 @@ func (cp *ConnectionPool) flagConnection(connectionID uint64) {
 	cp.flaggedConnections[connectionID] = true
 }
 
-// IsConnectionFlagged 检查连接是否已被标记为删除  checks to see if the connection has been flagged for removal.
+// IsConnectionFlagged 检查连接是否已被标记为已衰退(不可用)  checks to see if the connection has been flagged for removal.
 func (cp *ConnectionPool) isConnectionFlagged(connectionID uint64) bool {
 	cp.poolRWLock.RLock()
 	defer cp.poolRWLock.RUnlock()
